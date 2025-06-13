@@ -2,6 +2,7 @@
   "name": "my-academic-advisor-app",
   "private": true,
   "version": "0.0.0",
+  "homepage": "https://ztrainer.github.io/AIAcademicAdvisor/",
   "type": "module",
   "scripts": {
     "dev": "vite",
