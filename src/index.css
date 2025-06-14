@@ -1,6 +1,4 @@
 /* src/index.css */
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import './tailwind_input.css'; /* This line tells Vite to use the pre-processed CSS */
 
 /* You can add any global custom CSS below here if needed, but not Tailwind directives */

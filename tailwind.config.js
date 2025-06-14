@@ -8,6 +8,7 @@ export default {
     // within your 'src' directory and ANY of its subdirectories.
     // This is where your React components with Tailwind classes are.
     "./src/**/*.{js,ts,jsx,tsx}",
+    "./src/tailwind_input.css", // Add this line for completeness, though it may not be strictly necessary
   ],
   theme: {
     extend: {},
