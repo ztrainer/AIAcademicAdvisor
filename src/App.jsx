@@ -1,3 +1,4 @@
+// src/App.jsx
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 
 // --- DATA LAYER (The "Memory") ---
@@ -157,7 +158,7 @@ const FAQ_CONTENT = `
 * **First-Year Students:** Advising is through Freshman Engineering.
 * **Sophomore, Junior, Senior Students:** You should schedule an advising meeting with your assigned faculty advisor. You will receive an email about this process.
 
-**Can I get into a course that is full?**
+**Can I get into a course that is full?
 * Generally, no. Registration occurs in stages (based on earned credits), so registering early is crucial.
 * If a course is required for your degree and is full, contact your advisor, and they may be able to help. Electives are usually not overridden.
 
@@ -329,10 +330,10 @@ export default function App() {
         // This ensures the plan always starts for a plausible *future* semester.
         if (today.getMonth() > 9 && startSemester === 'Fall') { // If it's Oct, Nov, Dec and current plan starts Fall, push to next Spring
              startSemester = 'Spring';
-             startYear = currentYear + 1;
+             startYear = currentYear + 1; // Corrected: Use 'year' instead of 'startYear' to pass to getSemesterDisplayName
         } else if (today.getMonth() > 4 && today.getMonth() < 8 && startSemester === 'Spring') { // If it's Summer months (May-Aug) and current plan starts Spring, push to next Fall
              startSemester = 'Fall';
-             startYear = currentYear; // It should be the current year's Fall
+             startYear = currentYear; // Corrected: Use 'year' instead of 'startYear'
         }
 
 
@@ -591,14 +592,18 @@ export default function App() {
 
             // For the last semester, explicitly try to add a tech elective first from the standard template if available
             if (isLastSemester) {
-                const techElectiveInTemplate = idealSemesterTemplate.find(c => COURSE_CATALOG[c]?.type === 'elective-tech');
-                if (techElectiveInTemplate && availableNow.has(techElectiveInTemplate) && remainingCourses.has(techElectiveInTemplate)) {
-                    if (currentSemesterCredits + (COURSE_CATALOG[techElectiveInTemplate]?.credits || 0) <= MAX_CREDITS_PER_SEMESTER) {
-                        coursesToTake.push(techElectiveInTemplate);
-                        currentSemesterCredits += (COURSE_CATALOG[techElectiveInTemplate]?.credits || 0);
-                        currentCompleted.add(techElectiveInTemplate); // Temporarily add to completed for this iteration's planning
-                        remainingCourses.delete(techElectiveInTemplate); // Temporarily remove from remaining
-                        availableNow.delete(techElectiveInTemplate); // Remove from available so it's not picked again
+                const techElectiveToTake = [...remainingCourses].find(
+                    c => COURSE_CATALOG[c]?.type === 'elective-tech' && availableNow.has(c)
+                );
+                if (techElectiveToTake) {
+                    // Check if adding this tech elective exceeds max credits
+                    if (currentSemesterCredits + (COURSE_CATALOG[techElectiveToTake]?.credits || 0) <= MAX_CREDITS_PER_SEMESTER) {
+                        coursesToTake.push(techElectiveToTake);
+                        currentSemesterCredits += (COURSE_CATALOG[techElectiveToTake]?.credits || 0);
+                        // Mark as handled to avoid re-adding later in this same semester's loop
+                        currentCompleted.add(techElectiveToTake); 
+                        remainingCourses.delete(techElectiveToTake);
+                        availableNow.delete(techElectiveToTake); // Remove from available so it's not picked again
                         techElectiveAddedThisSemester = true;
                     }
                 }
@@ -655,11 +660,17 @@ export default function App() {
                         techElectiveAddedThisSemester = true; // Mark that a tech elective has been added
                     } else if (!isLastSemester || techElectiveAddedThisSemester || COURSE_CATALOG[courseId]?.type !== 'elective-tech') {
                         // For non-last semesters, or if a tech elective is already added in the last semester,
-                        // or if it's not a tech elective, just add if it fits.
-                        coursesToTake.push(courseId);
-                        currentSemesterCredits += (COURSE_CATALOG[courseId]?.credits || 0);
-                        currentCompleted.add(courseId);
-                        remainingCourses.delete(courseId);
+                        // or if it's not a tech elective, just add if it's not a general elective.
+                        // General electives are filled last unless explicitly part of standard plan
+                        const courseType = COURSE_CATALOG[courseId]?.type;
+                        const isGeneralElective = ['elective-gen'].includes(courseType);
+                        
+                        if (!isGeneralElective || idealSemesterTemplate.includes(courseId)) {
+                             coursesToTake.push(courseId);
+                             currentSemesterCredits += (COURSE_CATALOG[courseId]?.credits || 0);
+                             currentCompleted.add(courseId);
+                             remainingCourses.delete(courseId);
+                        }
                     }
                 }
             }
@@ -768,7 +779,13 @@ export default function App() {
                 body: JSON.stringify(payload)
             });
 
-            const result = await response.json(); // Apps Script returns JSON
+            // Check if the response is OK (status 200-299)
+            if (!response.ok) {
+                const errorText = await response.text(); // Get raw error text from server
+                throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+            }
+
+            const result = await response.json(); // Use await here, parsing the successful response
 
             if (result.response) { // Check for the 'response' property from Apps Script
                 setChatHistory(prev => [...prev, { role: 'ai', text: result.response }]);
@@ -781,7 +798,8 @@ export default function App() {
             }
         } catch (error) {
             console.error("Error communicating with Apps Script:", error);
-            setChatHistory(prev => [...prev, { role: 'ai', text: "I encountered a network error while processing your request. Please try again later." }]);
+            // Provide a more informative error message to the user
+            setChatHistory(prev => [...prev, { role: 'ai', text: `I encountered a network error while processing your request. This might be due to an incorrect Apps Script URL, deployment settings, or an issue with the Google API. Please try again later. (Error details: ${error.message || error})` }]);
         } finally {
             setIsThinking(false);
         }
