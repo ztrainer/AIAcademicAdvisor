@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "tailwind:build": "npx tailwindcss -i ./src/tailwind.css -o ./src/index.css --minify",
+    "tailwind:build": "./node_modules/.bin/tailwindcss -i ./src/tailwind.css -o ./src/index.css --minify",
     "build": "npm run tailwind:build && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
